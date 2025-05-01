@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>Maintenance-Schedule Dashboard</title>
+
+             <!-- Google Font -->
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+      <!-- Dashboard Styles -->
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/braintek-david/bench@main/dashboard-style-v1.1.css">
+    </head>
+    <body>
+        <header><h1>Maintenance Schedules</h1></header>
+
+        <section class="card" id="schedule-card">
+            <!-- chart -->
+            <div class="chart-wrap"><canvas id="dayChart" aria-label="Schedules per weekday"></canvas></div>
+
+            <!-- search -->
+            <div class="search-bar" role="search">
+                <label class="visually-hidden" for="tableSearch">Search schedules</label>
+                <input id="tableSearch" type="search" placeholder="Search tenant, ID, filter, time …" autocomplete="off" />
+                <button class="btn" id="clearSearch" type="button" hidden>Clear</button>
+            </div>
+
+            {# helpers ------------------------------------------------------------ #} {% macro fmt12(t) %} {% if t %} {% set p=t.split(':') %}{% set h=p[0]|int %}{% set m=p[1]|int %} {% set ap='AM' if h<12 else 'PM' %}{% set h12=h%12 if
+            h%12!=0 else 12 %} {{ '%d:%02d %s'|format(h12,m,ap) }} {% endif %} {% endmacro %} {% set day_map={0:'Sunday',1:'Monday',2:'Tuesday',3:'Wednesday',4:'Thursday',5:'Friday',6:'Saturday'} %} {% macro day_label(d) %}{{
+            day_map.get(d,'—') }}{% endmacro %} {% set reboot_map={0:'If necessary',1:'Suppress',2:'Prompt',-1:'Force'} %} {# build lists --------------------------------------------------------- #} {% set full=[] %}{% set miss=[] %}{% set
+            by_day={0:[],1:[],2:[],3:[],4:[],5:[],6:[]} %} {% for t in CTX.tenant_schedules|default([]) if '!' not in (t.tenantName|default('')) %} {% set filters=[s.targetGroupFilterName for s in t.schedules if s.targetGroupFilterName is
+            string] %} {% set complete='All' in filters or ('Servers' in filters and 'Workstations and Portable Devices' in filters) %} {% if complete and t.schedules|length %}{% do full.append(t) %}{% else %}{% do miss.append(t) %}{% endif
+            %} {% for sc in t.schedules %}{% if sc.day in by_day %}{% set _=by_day[sc.day].append({'name':t.tenantName,'id':sc.id}) %}{% endif %}{% endfor %} {% endfor %} {% set full=full|sort(attribute='tenantName') %}{% set
+            miss=miss|sort(attribute='tenantName') %}
+
+            <!-- complete table -->
+            <div class="section-header" data-target="withSchedulesTable">
+                <span class="section-title">Set Schedules</span>
+                <span class="section-count">{{ full|length }}</span>
+                <button class="btn collapse-btn" data-target="withSchedulesTable"><span class="caret"></span></button>
+            </div>
+            <div id="withSchedulesTable" class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tenant</th>
+                            <th>ID</th>
+                            <th>Day</th>
+                            <th>Detection</th>
+                            <th>Exececution</th>
+                            <th>Time Zone</th>
+                            <th>Reboot</th>
+                            <th>Target</th>
+                            <th>Filter</th>
+                            <th>Updates?</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tenant in full %}{% for i,s in tenant.schedules|enumerate %}
+                        <tr data-tenant="{{ tenant.tenantId }}">
+                            <td>{{ tenant.tenantName }}</td>
+
+                            <td><a href="https://braintek.immy.bot/schedules/{{ s.id }}/edit" target="_blank" rel="noopener">{{ s.id }}</a></td>
+                            <td>{{ day_label(s.day) }}</td>
+                            <td>{{ fmt12(s.time) }}</td>
+                            <td>{{ s.maintenanceTime is none and 'immediately' or fmt12(s.maintenanceTime) }}</td>
+                            <td>{{ s.timeZoneInfoId }}</td>
+                            <td>{{ reboot_map.get(s.rebootPreference,s.rebootPreference) }}</td>
+                            <td>{{ s.targetScopeName }}</td>
+                            <td>{{ s.targetGroupFilterName }}</td>
+                            <td>{{ 'Yes' if s.applyWindowsUpdates else 'No' }}</td>
+                        </tr>
+                        {% endfor %}{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- missing table -->
+            <div class="section-header" data-target="missingSchedulesTable">
+                <span class="section-title">Tenants With Missing Schedules</span>
+                <span class="section-count">{{ miss|length }}</span>
+                <button class="btn collapse-btn collapsed-btn" data-target="missingSchedulesTable"><span class="caret"></span></button>
+            </div>
+            <div id="missingSchedulesTable" class="table-container collapsed">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tenant</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tenant in miss %} {% set filters=[s.targetGroupFilterName for s in tenant.schedules if s.targetGroupFilterName is string] %} {% set has_s='Servers' in filters %}{% set has_w='Workstations and Portable Devices'
+                        in filters %} {% if tenant.schedules|length==0 %} {% set st='No schedules set' %} {% else %} {% set missing=[] %} {% if not has_s %}{% do missing.append('Server') %}{% endif %} {% if not has_w %}{% do
+                        missing.append('Workstation') %}{% endif %} {% set st='Missing ' ~ missing|join(' and ') ~ ' schedule' ~ ('s' if missing|length>1 else '') %} {% endif %}
+                        <tr data-tenant="{{ tenant.tenantId }}">
+                            <td><a href="https://braintek.immy.bot/tenants/{{ tenant.tenantId }}/schedules" target="_blank" rel="noopener">{{ tenant.tenantName }}</a></td>
+                            <td class="text-muted">{{ st }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- modal -->
+        <div class="modal" id="dayModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+            <div class="modal-content">
+                <h2 id="modalTitle"></h2>
+                <ul id="modalList"></ul>
+                <button class="btn" id="modalClose">Close</button>
+            </div>
+        </div>
+
+        <!-- Chart.js -->
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script src="https://cdn.jsdelivr.net/gh/braintek-david/bench@main/dashboard-v1.js"></script>
+    </body>
+</html>
