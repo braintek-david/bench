@@ -113,9 +113,15 @@
                 <button class="btn" id="modalClose">Close</button>
             </div>
         </div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-        <!-- Chart.js -->
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <script src="https://cdn.jsdelivr.net/gh/braintek-david/bench@main/dashboard-v1.js"></script>
+<!-- Inline variable definition -->
+<script>
+  const scheduleByDay = {{ by_day|tojson }};
+</script>
+
+<!-- External behavior logic -->
+<script src="https://cdn.jsdelivr.net/gh/braintek-david/bench@main/dashboard-v1.1.js"></script>
+
     </body>
 </html>
