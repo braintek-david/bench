@@ -1,5 +1,4 @@
 // ----- Chart data (rendered by Jinja) ------------------------------
-const scheduleByDay = {{ by_day|tojson }};
 const dayLabels = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const dayCounts = dayLabels.map((_,i)=>scheduleByDay[i].length);
 
