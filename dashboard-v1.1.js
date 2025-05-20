@@ -93,14 +93,28 @@ bindHover('#withSchedulesTable');bindHover('#missingSchedulesTable');
 
 // Hide duplicate tenant names
 function hideDuplicateTenantNames() {
-  const tenantCells = document.querySelectorAll('#withSchedulesTable tbody td:first-child');
+  const rows = document.querySelectorAll('#withSchedulesTable tbody tr[data-tenant]');
   let last = '';
-  tenantCells.forEach(cell => {
-    const name = cell.textContent.trim();
-    if (name === last) {
-      cell.textContent = ''; // Hide duplicate
+
+  rows.forEach(row => {
+    const cell = row.querySelector('td:first-child');
+    if (!cell) return;
+
+    // Preserve original text so we can restore it after filtering
+    const original = cell.dataset.original ?? cell.textContent.trim();
+    cell.dataset.original = original;
+
+    if (row.style.display === 'none') {
+      // Restore text for hidden rows so it is available when shown again
+      cell.textContent = original;
+      return;
+    }
+
+    if (original === last) {
+      cell.textContent = '';
     } else {
-      last = name;
+      cell.textContent = original;
+      last = original;
     }
   });
 }
@@ -123,15 +137,14 @@ function runSearch() {
   clearBtn.hidden = !q;
 
   groups.forEach((rows, id) => {
-    let anyMatch = false;
-
     rows.forEach(r => {
       const text = normalize(r.textContent);
       const match = !q || text.includes(q);
       r.style.display = match ? '' : 'none';
-      if (match) anyMatch = true;
     });
   });
+
+  hideDuplicateTenantNames();
 }
 
 searchInput.addEventListener('input',runSearch);
@@ -141,3 +154,6 @@ clearBtn.addEventListener('click',()=>{searchInput.value='';runSearch();searchIn
 document.getElementById('modalClose').onclick = () => modal.classList.remove('active');
 modal.onclick = e => { if (e.target === modal) modal.classList.remove('active'); };
 document.addEventListener('keydown', e => { if (e.key === 'Escape') modal.classList.remove('active'); });
+
+// Initial duplicate hiding
+hideDuplicateTenantNames();
